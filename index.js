@@ -35,19 +35,31 @@ function isModOrAdmin(member) {
 // ── CLEAR CHANNEL ─────────────────────────────────────────
 async function clearChannel(channel) {
   try {
-    // Text channel — bulk delete (maks 100 pesan, max 14 hari)
-    if (channel.type === ChannelType.GuildText ||
-        channel.type === ChannelType.GuildAnnouncement) {
-      let deleted = 1;
-      while (deleted > 0) {
-        const messages = await channel.messages.fetch({ limit: 100 });
-        if (messages.size === 0) break;
-        const bulk = await channel.bulkDelete(messages, true).catch(() => null);
-        deleted = bulk ? bulk.size : 0;
-        if (deleted === 0) break;
-        await new Promise(r => setTimeout(r, 1000)); // rate limit
+    let fetched;
+    do {
+      fetched = await channel.messages.fetch({ limit: 100 });
+      if (fetched.size === 0) break;
+
+      // Pisah pesan baru (<14 hari) dan lama (>14 hari)
+      const now = Date.now();
+      const fresh = fetched.filter(m => now - m.createdTimestamp < 12 * 24 * 60 * 60 * 1000);
+      const old   = fetched.filter(m => now - m.createdTimestamp >= 12 * 24 * 60 * 60 * 1000);
+
+      // Bulk delete pesan baru
+      if (fresh.size >= 2) {
+        await channel.bulkDelete(fresh, true).catch(() => null);
+      } else if (fresh.size === 1) {
+        await fresh.first().delete().catch(() => null);
       }
-    }
+
+      // Hapus satu-satu pesan lama
+      for (const msg of old.values()) {
+        await msg.delete().catch(() => null);
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      await new Promise(r => setTimeout(r, 1000));
+    } while (fetched.size >= 2);
   } catch (e) {
     console.error(`❌ Gagal clear #${channel.name}:`, e.message);
   }
@@ -138,7 +150,6 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
   ],
 });
 
