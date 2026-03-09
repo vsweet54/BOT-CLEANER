@@ -131,6 +131,15 @@ const commands = [
     .setName('clearnow')
     .setDescription('Hapus semua pesan di channel ini sekarang')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+
+  new SlashCommandBuilder()
+    .setName('disabletimer')
+    .setDescription('Matikan auto clear timer di channel ini')
+    .addChannelOption(o =>
+      o.setName('channel')
+        .setDescription('Channel yang mau dimatikan timernya (default: channel ini)')
+        .setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 ];
 
 async function registerCommands() {
@@ -227,6 +236,18 @@ client.on('interactionCreate', async (interaction) => {
     return interaction.editReply(`⏰ **Channel dengan Auto Clear:**\n${list}`);
   }
 
+  if (cmd === 'disabletimer') {
+    const target = interaction.options.getChannel('channel') || interaction.channel;
+    const db = loadDB();
+    if (!db[target.id] || !db[target.id].enabled) {
+      return interaction.editReply(`ℹ️ Timer di <#${target.id}> memang sudah tidak aktif.`);
+    }
+    stopTimer(target.id);
+    delete db[target.id];
+    saveDB(db);
+    return interaction.editReply(`✅ Timer auto clear di <#${target.id}> **dimatikan**. Pesan tidak akan dihapus otomatis lagi.`);
+  }
+
   if (cmd === 'clearnow') {
     await interaction.editReply(`🧹 Menghapus semua pesan di <#${channel.id}>...`);
     await clearChannel(channel);
@@ -283,6 +304,18 @@ client.on('messageCreate', async (message) => {
   }
 
   // !clearnow
+  if (cmd === 'disabletimer') {
+    const target = interaction.options.getChannel('channel') || interaction.channel;
+    const db = loadDB();
+    if (!db[target.id] || !db[target.id].enabled) {
+      return interaction.editReply(`ℹ️ Timer di <#${target.id}> memang sudah tidak aktif.`);
+    }
+    stopTimer(target.id);
+    delete db[target.id];
+    saveDB(db);
+    return interaction.editReply(`✅ Timer auto clear di <#${target.id}> **dimatikan**. Pesan tidak akan dihapus otomatis lagi.`);
+  }
+
   if (cmd === 'clearnow') {
     const msg = await message.reply('🧹 Menghapus semua pesan...');
     await clearChannel(message.channel);
@@ -293,6 +326,18 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
+  // !disabletimer
+  if (cmd === 'disabletimer') {
+    const db = loadDB();
+    if (!db[message.channel.id] || !db[message.channel.id].enabled) {
+      return message.reply(`ℹ️ Timer di channel ini memang sudah tidak aktif.`);
+    }
+    stopTimer(message.channel.id);
+    delete db[message.channel.id];
+    saveDB(db);
+    return message.reply(`✅ Timer auto clear **dimatikan**. Pesan tidak akan dihapus otomatis lagi.`);
+  }
+
   // !clearhelp
   if (cmd === 'clearhelp') {
     return message.reply(
@@ -300,7 +345,8 @@ client.on('messageCreate', async (message) => {
       `\`!autoclear <menit>\` — Set auto clear (0 = matikan)\n` +
       `\`!clearstatus\` — Status auto clear channel ini\n` +
       `\`!clearlist\` — Semua channel yang aktif\n` +
-      `\`!clearnow\` — Hapus semua pesan sekarang\n\n` +
+      `\`!clearnow\` — Hapus semua pesan sekarang\n` +
+      `\`!disabletimer\` — Matikan timer auto clear\n\n` +
       `_Contoh: \`!autoclear 30\` → hapus pesan setiap 30 menit_`
     );
   }
