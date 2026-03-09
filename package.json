@@ -1,0 +1,13 @@
+{
+  "name": "cleaner-bot",
+  "version": "1.0.0",
+  "description": "Discord Channel Auto Clear Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.0.0",
+    "dotenv": "^16.0.0"
+  }
+}
