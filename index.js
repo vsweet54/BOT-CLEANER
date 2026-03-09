@@ -92,13 +92,17 @@ function restoreTimers(client) {
 const commands = [
   new SlashCommandBuilder()
     .setName('autoclear')
-    .setDescription('Set auto clear pesan di channel ini')
+    .setDescription('Set auto clear pesan di channel')
     .addIntegerOption(o =>
       o.setName('menit')
         .setDescription('Hapus pesan setiap X menit (0 = matikan)')
         .setRequired(true)
         .setMinValue(0)
-        .setMaxValue(10080)) // maks 1 minggu
+        .setMaxValue(10080))
+    .addChannelOption(o =>
+      o.setName('channel')
+        .setDescription('Channel yang mau di-set (default: channel ini)')
+        .setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
   new SlashCommandBuilder()
@@ -183,7 +187,8 @@ client.on('interactionCreate', async (interaction) => {
 
   if (cmd === 'autoclear') {
     const minutes = interaction.options.getInteger('menit');
-    return handleSetAutoClear(channel, minutes, (msg) => interaction.editReply(msg));
+    const target = interaction.options.getChannel('channel') || interaction.channel;
+    return handleSetAutoClear(target, minutes, (msg) => interaction.editReply(msg));
   }
 
   if (cmd === 'clearstatus') {
